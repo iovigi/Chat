@@ -1,0 +1,122 @@
+﻿@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.EntityFrameworkCore.Metadata.Internal
+@rendermode InteractiveServer
+@page "/"
+@inject NavigationManager Navigation
+@implements IAsyncDisposable
+
+@attribute [Authorize]
+
+<PageTitle>Home</PageTitle>
+
+<h1 class="text-center">Chat</h1>
+
+<!-- char-area -->
+<section class="message-area">
+    <div class="row">
+        <div class="col-12">
+            <div class="chat-area">
+
+
+
+                <!-- chatbox -->
+                <div class="chatbox showbox">
+                    <div class="modal-dialog-scrollable">
+                        <div class="modal-content">
+
+
+                            <div class="modal-body">
+                                <div class="msg-body">
+                                    <ul>
+                                        @foreach (var message in Messages)
+                                        {
+                                            @if (message.IsBot)
+                                            {
+                                                <li class="sender">
+                                                    <p>@message.Message</p>
+                                                </li>
+                                            }
+                                            else
+                                            {
+                                                <li class="repaly">
+                                                    <p>@message.Message</p>
+                                                </li>
+                                            }
+                                        }
+                                    </ul>
+                                </div>
+                            </div>
+
+
+                            <div class="send-box">
+                                <form action="">
+                                    <input @bind=Text type="text" class="form-control" aria-label="message…" placeholder="Write message…">
+                                    <button @onclick=SendMessage type="button"><i class="fa fa-paper-plane" aria-hidden="true"></i> Send</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- chatbox -->
+
+
+        </div>
+    </div>
+</section>
+<!-- char-area -->
+@code {
+    [Inject] private IHttpContextAccessor httpContextAccessor { get; set; } = default!;
+
+    private HubConnection? hubConnection;
+
+    public List<(bool IsBot, string Message)> Messages { get; set; } = new List<(bool bot, string message)>();
+
+    public string Text { get; set; } = string.Empty;
+    public Guid ConversationId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/chathub"), options =>
+            {
+                foreach (var cookie in httpContextAccessor!.HttpContext!.Request.Cookies)
+                {
+                    options.Cookies.Add(new System.Net.Cookie(cookie.Key, cookie.Value) { Domain = httpContextAccessor.HttpContext.Request.Host.Host });
+                }
+
+                options.UseDefaultCredentials = true;
+            })
+            .Build();
+
+        hubConnection.On<string>("ReceiveMessage", (message) =>
+        {
+            Messages.Add((true, message));
+            InvokeAsync(StateHasChanged);
+        });
+
+        await hubConnection.StartAsync();
+        ConversationId = Guid.NewGuid();
+    }
+
+    async Task SendMessage()
+    {
+        Messages.Add((false, Text));
+
+        if (hubConnection is not null)
+        {
+            await hubConnection.SendAsync("SendMessage", ConversationId, Text);
+        }
+
+        Text = string.Empty;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+}
