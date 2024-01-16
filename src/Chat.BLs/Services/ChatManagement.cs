@@ -10,19 +10,14 @@ namespace Chat.BLs.Services
         {
             return memoryCache.GetOrCreate<IChatSession?>(conversationId, (cacheEntry) =>
             {
-                var llamaModel = modelStorage.Get(model ?? modelSettingOptions.Value.DefaultModel);
+                var ex = modelStorage.Get(model ?? modelSettingOptions.Value.DefaultModel);
 
-                if(llamaModel == null)
+                if(ex == null)
                 {
                     return null;
                 }
 
-                if (prompt != null)
-                {
-                    llamaModel = llamaModel.WithPrompt(prompt);
-                }
-
-                return new ChatSession(llamaModel);
+                return new ChatSession(new LLama.ChatSession(ex));
             });
         }
     }

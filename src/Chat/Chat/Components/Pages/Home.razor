@@ -34,13 +34,13 @@
                                             @if (message.IsBot)
                                             {
                                                 <li class="sender">
-                                                    <p>@message.Message</p>
+                                                    <p>@string.Join("", @message.Message)</p>
                                                 </li>
                                             }
                                             else
                                             {
                                                 <li class="repaly">
-                                                    <p>@message.Message</p>
+                                                    <p>@string.Join("", @message.Message)</p>
                                                 </li>
                                             }
                                         }
@@ -71,7 +71,7 @@
 
     private HubConnection? hubConnection;
 
-    public List<(bool IsBot, string Message)> Messages { get; set; } = new List<(bool bot, string message)>();
+    public List<(bool IsBot, List<string> Message)> Messages { get; set; } = new List<(bool bot, List<string> message)>();
 
     public string Text { get; set; } = string.Empty;
     public Guid ConversationId { get; set; }
@@ -90,9 +90,14 @@
             })
             .Build();
 
-        hubConnection.On<string>("ReceiveMessage", (message) =>
+        hubConnection.On<string, int>("ReceiveMessage", (message, index) =>
         {
-            Messages.Add((true, message));
+            if (Messages.Count <= index)
+            {
+                Messages.Add(new(true, new List<string>()));
+            }
+
+            Messages[index].Message.Add(message);
             InvokeAsync(StateHasChanged);
         });
 
@@ -102,11 +107,11 @@
 
     async Task SendMessage()
     {
-        Messages.Add((false, Text));
+        Messages.Add((false, new List<string>() { Text }));
 
         if (hubConnection is not null)
         {
-            await hubConnection.SendAsync("SendMessage", ConversationId, Text);
+            await hubConnection.SendAsync("SendMessage", ConversationId, Text, Messages.Count);
         }
 
         Text = string.Empty;

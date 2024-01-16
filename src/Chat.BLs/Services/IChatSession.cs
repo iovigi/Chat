@@ -8,6 +8,6 @@ namespace Chat.BLs.Services
 {
     public interface IChatSession
     {
-        IEnumerable<string> Chat(string text);
+        IAsyncEnumerable<string> Chat(string text);
     }
 }

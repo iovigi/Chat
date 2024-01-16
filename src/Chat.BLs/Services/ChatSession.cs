@@ -1,10 +1,11 @@
 ﻿using LLama;
+using LLama.Common;
 
 namespace Chat.BLs.Services
 {
-    internal class ChatSession(IChatModel chatModel) : IChatSession
+    internal class ChatSession(LLama.ChatSession chatModel) : IChatSession
     {
-        public IEnumerable<string> Chat(string text)
-            => chatModel.Chat(text);
+        public IAsyncEnumerable<string> Chat(string text)
+            => chatModel.ChatAsync(new ChatHistory.Message(AuthorRole.User, text));
     }
 }

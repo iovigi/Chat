@@ -1,16 +1,18 @@
 ﻿using Chat.BLs.Configurations;
 using LLama;
+using LLama.Common;
 using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 
 namespace Chat.BLs.Services
 {
     internal class ModelStorage(IOptions<ModelSettings> modelSettingOptions) : IModelStorage
     {
         private readonly ModelSettings modelSettings = modelSettingOptions.Value;
-        private readonly ConcurrentDictionary<string, LLamaModel> models = new();
+        private readonly ConcurrentDictionary<string, LLama.InteractiveExecutor> models = new();
 
-        public LLamaModel? Get(string modelName)
+        public LLama.InteractiveExecutor? Get(string modelName)
         {
             return models
                 .TryGetValue(modelName, out var model) ? 
@@ -21,14 +23,18 @@ namespace Chat.BLs.Services
         {
             foreach(var modelSettings in modelSettings.Models)
             {
-                var model = new LLamaModel(new LLamaParams(
-                    model: Path.Combine(modelSettings.Path),
-                    n_ctx: 512,
-                    interactive: true,
-                    repeat_penalty: 1.0f,
-                    verbose_prompt: false));
+                var parameters = new ModelParams(modelSettings.Path)
+                {
+                    ContextSize = 512,
+                };
 
-                models.TryAdd(modelSettings.Name, model);
+                var weights = LLamaWeights.LoadFromFile(parameters);
+
+                var context = new LLamaContext(weights, parameters);
+
+                var ex = new InteractiveExecutor(context);
+
+                models.TryAdd(modelSettings.Name, ex);
             }
         }
     }

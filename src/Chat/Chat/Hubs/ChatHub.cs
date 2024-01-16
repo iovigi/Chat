@@ -14,7 +14,7 @@ namespace Chat.Hubs
             this.chatManagement = chatManagement;
         }
 
-        public async Task SendMessage(Guid conversationId, string message)
+        public async Task SendMessage(Guid conversationId, string message, int index)
         {
             var session = chatManagement.Get(conversationId);
 
@@ -23,9 +23,10 @@ namespace Chat.Hubs
                 return;
             }
 
-            var response = string.Join(' ', session.Chat(message).ToList());
-
-            await Clients.Caller.SendAsync("ReceiveMessage", response);
+            await foreach (var text in session.Chat(message))
+            {
+                await Clients.Caller.SendAsync("ReceiveMessage", text, index);
+            }
         }
     }
 }
